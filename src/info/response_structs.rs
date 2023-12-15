@@ -28,6 +28,7 @@ pub struct UserFillsResponse {
     pub coin: String,
     pub crossed: bool,
     pub dir: String,
+    pub fee: String,
     pub hash: String,
     pub oid: u64,
     pub px: String,
