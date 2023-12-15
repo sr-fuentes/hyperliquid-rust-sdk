@@ -21,7 +21,7 @@ async fn parse_response(response: Response) -> Result<String> {
         .text()
         .await
         .map_err(|e| Error::GenericRequest(e.to_string()))?;
-    println!("Response Text: {:#?}", text);
+
     if status_code < 400 {
         return Ok(text);
     }
