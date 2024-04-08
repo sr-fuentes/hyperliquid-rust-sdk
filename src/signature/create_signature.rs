@@ -25,8 +25,17 @@ pub(crate) fn keccak(x: impl AbiEncode) -> H256 {
     keccak256(x.encode()).into()
 }
 
-pub(crate) fn sign_l1_action(wallet: &LocalWallet, connection_id: H256, is_mainnet: bool) -> Result<Signature> {
-    sign_with_agent(wallet, EthChain::Localhost, if is_mainnet { "a" } else { "b" }, connection_id)
+pub(crate) fn sign_l1_action(
+    wallet: &LocalWallet,
+    connection_id: H256,
+    is_mainnet: bool,
+) -> Result<Signature> {
+    sign_with_agent(
+        wallet,
+        EthChain::Localhost,
+        if is_mainnet { "a" } else { "b" },
+        connection_id,
+    )
 }
 
 pub(crate) fn sign_usd_transfer_action(
@@ -112,6 +121,8 @@ fn sign_hash(hash: H256, wallet: &LocalWallet) -> Signature {
 
 #[cfg(test)]
 mod tests {
+    use ethers::types::H160;
+
     use super::*;
     use std::str::FromStr;
 
@@ -156,6 +167,159 @@ mod tests {
                 .to_string(),
             expected_sig
         );
+        Ok(())
+    }
+
+    #[test]
+    fn test_sign_ref() -> Result<()> {
+        let priv_key = "738786125b186eddbdf358dd55308f1c05a12b9b638643aaae37c7d1be99a42e";
+        let wallet = priv_key
+            .parse::<LocalWallet>()
+            .map_err(|e| Error::Wallet(e.to_string()))
+            .unwrap();
+        let timestamp: u64 = 1702655843561;
+        let vault_address = H160::default();
+        let user = H160::from_str("0x9D974aEd2EC4eFBb866750cceb6be42eD792e793").unwrap();
+        let connection_id1 = keccak(("OSCAR".to_string(), user));
+        let connection_id2 = keccak((vault_address, timestamp));
+        let connection_id3 = keccak(timestamp);
+        let connection_id4 = keccak((true, timestamp));
+        let connection_id5 = keccak((true, vault_address, timestamp));
+        let connection_id6 = keccak((vault_address, true, timestamp));
+        let connection_id7 = keccak(H160::default());
+        let connection_id8 = keccak((user, "OSCAR".to_string()));
+        let connection_id9 = keccak((user, "OSCAR".to_string(), vault_address, timestamp));
+        let connection_id0 = keccak((
+            user,
+            "string".to_string(),
+            "OSCAR".to_string(),
+            vault_address,
+            timestamp,
+        ));
+        // let expected_mainnet_sig = "fa8a41f6a3fa728206df80801a83bcbfbab08649cd34d9c0bfba7c7b2f99340f53a00226604567b98a1492803190d65a201d6805e5831b7044f17fd530aec7841c";
+        let sig1l1 = sign_l1_action(&wallet, connection_id1, true)?;
+        let sig2l1 = sign_l1_action(&wallet, connection_id8, true)?;
+        // let sig3 = sign_l1_action(&wallet, connection_id3, true)?;
+        // let sig4 = sign_l1_action(&wallet, connection_id4, true)?;
+        // let sig5 = sign_l1_action(&wallet, connection_id5, true)?;
+        // let sig6 = sign_l1_action(&wallet, connection_id6, true)?;
+        // let sig7 = sign_l1_action(&wallet, connection_id7, true)?;
+        let sig1 = sign_with_agent(
+            &wallet,
+            EthChain::Arbitrum,
+            "https://hyperliquid.xyz",
+            connection_id1,
+        )?;
+        let sig2 = sign_with_agent(
+            &wallet,
+            EthChain::Arbitrum,
+            "https://hyperliquid.xyz",
+            connection_id2,
+        )?;
+        let sig3 = sign_with_agent(
+            &wallet,
+            EthChain::Arbitrum,
+            "https://hyperliquid.xyz",
+            connection_id3,
+        )?;
+        let sig4 = sign_with_agent(
+            &wallet,
+            EthChain::Arbitrum,
+            "https://hyperliquid.xyz",
+            connection_id4,
+        )?;
+        let sig5 = sign_with_agent(
+            &wallet,
+            EthChain::Arbitrum,
+            "https://hyperliquid.xyz",
+            connection_id5,
+        )?;
+        let sig6 = sign_with_agent(
+            &wallet,
+            EthChain::Arbitrum,
+            "https://hyperliquid.xyz",
+            connection_id6,
+        )?;
+        let sig7: Signature = sign_with_agent(
+            &wallet,
+            EthChain::Arbitrum,
+            "https://hyperliquid.xyz",
+            connection_id7,
+        )?;
+        let sig8: Signature = sign_with_agent(
+            &wallet,
+            EthChain::Arbitrum,
+            "https://hyperliquid.xyz",
+            connection_id8,
+        )?;
+        let sig9: Signature = sign_with_agent(
+            &wallet,
+            EthChain::Arbitrum,
+            "https://hyperliquid.xyz",
+            connection_id9,
+        )?;
+        let sig0: Signature = sign_with_agent(
+            &wallet,
+            EthChain::Arbitrum,
+            "https://hyperliquid.xyz",
+            connection_id0,
+        )?;
+
+        println!(
+            "Sig1: {:?}",
+            serde_json::to_string(&sig1).map_err(|e| Error::JsonParse(e.to_string()))?,
+        );
+        println!(
+            "Sig2: {:?}",
+            serde_json::to_string(&sig2).map_err(|e| Error::JsonParse(e.to_string()))?,
+        );
+        println!(
+            "Sig3: {:?}",
+            serde_json::to_string(&sig3).map_err(|e| Error::JsonParse(e.to_string()))?,
+        );
+        println!(
+            "Sig4: {:?}",
+            serde_json::to_string(&sig4).map_err(|e| Error::JsonParse(e.to_string()))?,
+        );
+        println!(
+            "Sig5: {:?}",
+            serde_json::to_string(&sig5).map_err(|e| Error::JsonParse(e.to_string()))?,
+        );
+        println!(
+            "Sig6: {:?}",
+            serde_json::to_string(&sig6).map_err(|e| Error::JsonParse(e.to_string()))?,
+        );
+        println!(
+            "Sig7: {:?}",
+            serde_json::to_string(&sig7).map_err(|e| Error::JsonParse(e.to_string()))?,
+        );
+        println!(
+            "Sig8: {:?}",
+            serde_json::to_string(&sig8).map_err(|e| Error::JsonParse(e.to_string()))?,
+        );
+        println!(
+            "Sig9: {:?}",
+            serde_json::to_string(&sig9).map_err(|e| Error::JsonParse(e.to_string()))?,
+        );
+        println!(
+            "Sig0: {:?}",
+            serde_json::to_string(&sig0).map_err(|e| Error::JsonParse(e.to_string()))?,
+        );
+        println!(
+            "Sig1l1: {:?}",
+            serde_json::to_string(&sig1l1).map_err(|e| Error::JsonParse(e.to_string()))?,
+        );
+        println!(
+            "Sig8l1: {:?}",
+            serde_json::to_string(&sig2l1).map_err(|e| Error::JsonParse(e.to_string()))?,
+        );
+        let expected_sig_r = "0xddf593e5d8cfe48de8581f3f43d3e32ad8804ba90e155dd79f7b9f6f75b2a29c";
+        let expected_sig_s = "0x71c744fb9f2f7ab96adfddbd214a72cec9a61001f84fc6097c5afad16ae8a064";
+        let expected_sig_v = 27;
+        println!("Expected Sig R: {}", expected_sig_r);
+        println!("Expected Sig S: {}", expected_sig_s);
+        println!("Expected Sig V: {}", expected_sig_v);
+
         Ok(())
     }
 }

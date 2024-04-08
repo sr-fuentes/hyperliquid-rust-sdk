@@ -16,7 +16,7 @@ use crate::{
         agent::mainnet::Agent, keccak, sign_l1_action, sign_usd_transfer_action, sign_with_agent,
         usdc_transfer::mainnet::UsdTransferSignPayload,
     },
-    BaseUrl, Error, ExchangeResponseStatus,
+    BaseUrl, Error, ExchangeResponseStatus, SetReferrer,
 };
 use ethers::{
     abi::AbiEncode,
@@ -48,12 +48,13 @@ struct ExchangePayload {
 #[serde(tag = "type")]
 #[serde(rename_all = "camelCase")]
 pub enum Actions {
-    UsdTransfer(UsdcTransfer),
-    UpdateLeverage(UpdateLeverage),
-    UpdateIsolatedMargin(UpdateIsolatedMargin),
-    Order(BulkOrder),
-    Cancel(BulkCancel),
-    Connect(AgentConnect),
+    UsdTransfer(UsdcTransfer),                  // sign_usd
+    UpdateLeverage(UpdateLeverage),             // sign l1 - asset, cross, leve, vault, timestamp
+    UpdateIsolatedMargin(UpdateIsolatedMargin), // sign l1 - asset, true, amount, vault, timestamp
+    Order(BulkOrder),      // sign l1 - connid: hashable tuples, 0, vault, timestamp)
+    Cancel(BulkCancel),    // sign l1 - connid: hashable tuples, vault, timestamp
+    Connect(AgentConnect), // sign w agent
+    SetReferrer(SetReferrer), // try sign l1 with connid: address
 }
 
 impl ExchangeClient {
@@ -277,6 +278,26 @@ impl ExchangeClient {
         self.post(action, signature, timestamp).await
     }
 
+    pub async fn set_referrer(
+        &self,
+        code: String,
+        _user: H160,
+        wallet: Option<&LocalWallet>,
+    ) -> Result<ExchangeResponseStatus> {
+        let wallet = wallet.unwrap_or(&self.wallet);
+
+        let timestamp = now_timestamp_ms();
+        let vault_address = self.vault_address.unwrap_or_default();
+
+        let connection_id = keccak((code.clone(), vault_address, timestamp));
+        let action = serde_json::to_value(Actions::SetReferrer(SetReferrer { code }))
+            .map_err(|e| Error::JsonParse(e.to_string()))?;
+        let is_mainnet = self.http_client.base_url == BaseUrl::Mainnet.get_url();
+        let signature = sign_l1_action(wallet, connection_id, is_mainnet)?;
+
+        self.post(action, signature, timestamp).await
+    }
+
     pub async fn approve_agent(
         &self,
         wallet: Option<&LocalWallet>,
@@ -288,7 +309,9 @@ impl ExchangeClient {
             .parse::<LocalWallet>()
             .map_err(|e| Error::PrivateKeyParse(e.to_string()))?
             .address();
+        println!("Address: {:?}", address);
         let connection_id = keccak(address);
+        println!("Conn Id: {:?}", connection_id);
 
         let (chain, l1_name) = if self.http_client.base_url.eq(MAINNET_API_URL) {
             (EthChain::Arbitrum, "Arbitrum".to_string())

@@ -23,5 +23,5 @@ pub struct User {
 
 #[derive(Deserialize, Clone, Debug)]
 pub struct Candle {
-    pub data: CandleData
+    pub data: CandleData,
 }

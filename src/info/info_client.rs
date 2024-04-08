@@ -2,12 +2,7 @@ use crate::{
     info::{
         CandlesSnapshotResponse, FundingHistoryResponse, L2SnapshotResponse, OpenOrdersResponse,
         RecentTradesResponse, UserFillsResponse, UserStateResponse,
-    },
-    meta::Meta,
-    prelude::*,
-    req::HttpClient,
-    ws::{Subscription, WsManager},
-    BaseUrl, Error, Message,
+    }, meta::Meta, prelude::*, req::HttpClient, ws::{Subscription, WsManager}, BaseUrl, Error, LegalCheckResponse, Message, UserFundingResponse, UserPointsResponse
 };
 
 use ethers::types::H160;
@@ -37,13 +32,23 @@ pub enum InfoRequest {
     UserStates {
         users: Vec<H160>,
     },
+    UserPoints {
+        user: H160,
+    },
     OpenOrders {
         user: H160,
     },
     Meta,
+    LegalCheck {
+        user: H160,
+    },
     AllMids,
     UserFills {
         user: H160,
+    },
+    UserFunding {
+        user: H160,
+        start_time: u64,
     },
     #[serde(rename_all = "camelCase")]
     FundingHistory {
@@ -138,6 +143,22 @@ impl InfoClient {
         serde_json::from_str(&return_data).map_err(|e| Error::JsonParse(e.to_string()))
     }
 
+    pub async fn user_points(&self, address: H160) -> Result<UserPointsResponse> {
+        let input = InfoRequest::UserPoints { user: address };
+        let data = serde_json::to_string(&input).map_err(|e| Error::JsonParse(e.to_string()))?;
+        
+        let return_data = self.http_client.post("/info", data).await?;
+        serde_json::from_str(&return_data).map_err(|e| Error::JsonParse(e.to_string()))
+    }
+
+    pub async fn legal_check(&self, address: H160) -> Result<LegalCheckResponse> {
+        let input = InfoRequest::LegalCheck { user: address };
+        let data = serde_json::to_string(&input).map_err(|e| Error::JsonParse(e.to_string()))?;
+
+        let return_data = self.http_client.post("/info", data).await?;
+        serde_json::from_str(&return_data).map_err(|e| Error::JsonParse(e.to_string()))
+    }
+
     pub async fn meta(&self) -> Result<Meta> {
         let input = InfoRequest::Meta;
         let data = serde_json::to_string(&input).map_err(|e| Error::JsonParse(e.to_string()))?;
@@ -156,6 +177,21 @@ impl InfoClient {
 
     pub async fn user_fills(&self, address: H160) -> Result<Vec<UserFillsResponse>> {
         let input = InfoRequest::UserFills { user: address };
+        let data = serde_json::to_string(&input).map_err(|e| Error::JsonParse(e.to_string()))?;
+
+        let return_data = self.http_client.post("/info", data).await?;
+        serde_json::from_str(&return_data).map_err(|e| Error::JsonParse(e.to_string()))
+    }
+
+    pub async fn user_funding(
+        &self,
+        address: H160,
+        start_time: u64,
+    ) -> Result<Vec<UserFundingResponse>> {
+        let input = InfoRequest::UserFunding {
+            user: address,
+            start_time,
+        };
         let data = serde_json::to_string(&input).map_err(|e| Error::JsonParse(e.to_string()))?;
 
         let return_data = self.http_client.post("/info", data).await?;

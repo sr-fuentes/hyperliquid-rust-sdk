@@ -47,3 +47,23 @@ pub struct AgentConnect {
     pub agent: Agent,
     pub agent_address: H160,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SetReferrer {
+    pub code: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Actions, SetReferrer};
+
+    #[test]
+    fn test_set_referrer() {
+        let ref_code = Actions::SetReferrer(SetReferrer {
+            code: "OSCAR".to_string(),
+        });
+        let action = serde_json::to_value(ref_code);
+        println!("{:?}", action);
+    }
+}

@@ -8,6 +8,8 @@ pub struct Meta {
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct AssetMeta {
+    pub max_leverage: u32,
     pub name: String,
+    pub only_isolated: bool,
     pub sz_decimals: u32,
 }

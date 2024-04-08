@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
@@ -45,4 +46,21 @@ pub struct Level {
     pub n: u64,
     pub px: String,
     pub sz: String,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct UserSummary {
+    pub distribution_history: Vec<DistributionHistory>,
+    pub percentile: f64,
+    pub rank: u32,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct DistributionHistory {
+    pub end_date: DateTime<Utc>,
+    pub points: u32,
+    pub referred_vlm: f64,
+    pub start_date: DateTime<Utc>,
 }
