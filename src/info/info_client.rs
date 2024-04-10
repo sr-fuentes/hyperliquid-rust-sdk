@@ -8,6 +8,7 @@ use crate::{
 use ethers::types::H160;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashMap;
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -40,6 +41,9 @@ pub enum InfoRequest {
     },
     Meta,
     LegalCheck {
+        user: H160,
+    },
+    AcceptTerms {
         user: H160,
     },
     AllMids,
@@ -146,8 +150,9 @@ impl InfoClient {
     pub async fn user_points(&self, address: H160) -> Result<UserPointsResponse> {
         let input = InfoRequest::UserPoints { user: address };
         let data = serde_json::to_string(&input).map_err(|e| Error::JsonParse(e.to_string()))?;
-        
+        println!("Data: {:?}", data);
         let return_data = self.http_client.post("/info", data).await?;
+        println!("Raw: {:?}", return_data);
         serde_json::from_str(&return_data).map_err(|e| Error::JsonParse(e.to_string()))
     }
 
@@ -158,6 +163,15 @@ impl InfoClient {
         let return_data = self.http_client.post("/info", data).await?;
         serde_json::from_str(&return_data).map_err(|e| Error::JsonParse(e.to_string()))
     }
+
+    pub async fn accept_terms(&self, address: H160) -> Result<Value> {
+        let input = InfoRequest::AcceptTerms { user: address };
+        let data = serde_json::to_string(&input).map_err(|e| Error::JsonParse(e.to_string()))?;
+
+        let return_data = self.http_client.post("/info", data).await?;
+        serde_json::from_str(&return_data).map_err(|e| Error::JsonParse(e.to_string()))
+    }
+
 
     pub async fn meta(&self) -> Result<Meta> {
         let input = InfoRequest::Meta;

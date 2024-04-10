@@ -35,13 +35,22 @@ pub struct ExchangeClient {
     pub coin_to_asset: HashMap<String, u32>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct ExchangePayload {
     action: serde_json::Value,
     signature: Signature,
     nonce: u64,
     vault_address: Option<H160>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct InfoPayload {
+    signature: Signature,
+    nonce: u64,
+    r#type: String,
+    user: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -111,6 +120,32 @@ impl ExchangeClient {
             &self
                 .http_client
                 .post("/exchange", res)
+                .await
+                .map_err(|e| Error::JsonParse(e.to_string()))?,
+        )
+        .map_err(|e| Error::JsonParse(e.to_string()))
+    }
+
+    async fn post_info(
+        &self,
+        signature: Signature,
+        nonce: u64,
+        user: H160,
+    ) -> Result<ExchangeResponseStatus> {
+        let info_payload = InfoPayload {
+            signature,
+            nonce,
+            r#type: "userPoints".to_string(),
+            user: user.to_string(),
+        };
+        println!("Value: {:#?}", info_payload);
+        let res = serde_json::to_string(&info_payload)
+            .map_err(|e| Error::JsonParse(e.to_string()))?;
+        println!("String: {}", res);
+        serde_json::from_str(
+            &self
+                .http_client
+                .post("/info", res)
                 .await
                 .map_err(|e| Error::JsonParse(e.to_string()))?,
         )
@@ -296,6 +331,22 @@ impl ExchangeClient {
         let signature = sign_l1_action(wallet, connection_id, is_mainnet)?;
 
         self.post(action, signature, timestamp).await
+    }
+
+    pub async fn user_points(
+        &self,
+    ) -> Result<ExchangeResponseStatus> {
+        let wallet = &self.wallet;
+        let address = wallet.address();
+
+        let timestamp = now_timestamp_ms();
+        let vault_address = self.vault_address.unwrap_or_default();
+
+        let connection_id = keccak((address, vault_address, timestamp));
+        let is_mainnet = self.http_client.base_url == BaseUrl::Mainnet.get_url();
+        let signature = sign_l1_action(wallet, connection_id, is_mainnet)?;
+
+        self.post_info(signature, timestamp, address).await
     }
 
     pub async fn approve_agent(
